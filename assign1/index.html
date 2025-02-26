@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<div id="audiviz">
+    <h2>Audi US Sales by Model by Year from 2017-2024</h2>
+    <div>
+        <label><input type="radio" name="colorScheme" value="original" checked> Original</label>
+        <label><input type="radio" name="colorScheme" value="suvSedan"> SUV vs Sedan</label>
+        <label><input type="radio" name="colorScheme" value="gasElectric"> Gas Car vs Electronic Car</label>
+    </div>
+    <script src="https://d3js.org/d3.v4.js"></script>
+</div>
+<script>
+    var margin = {top: 40, right: 120, bottom: 200, left: 40}, 
+        width = window.innerWidth - margin.left - margin.right, 
+        height = window.innerHeight - margin.top - margin.bottom;
+    
+    var svg = d3.select("#audiviz").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Tooltip
+    var tooltip = d3.select("#audiviz").append("div")
+        .style("position", "absolute")
+        .style("background", "white")
+        .style("padding", "5px")
+        .style("border", "1px solid black")
+        .style("border-radius", "5px")
+        .style("display", "none");
+    
+    d3.csv("dataT.csv", function(data) {
+        var keys = data.columns.slice(1);
+
+        var colorSchemes = {
+            "original": ['#EE00F2','#CC11F4','#AA22F6','#8833F8','#6644F9','#4455FB','#2266FD','#0077FF','#0079F2','#00BCDF','#00FFCC','#8DF200','#AAF300','#C6F500','#E3F600','#FFF700','#F2BA00','#F67C00','#FB3E00','#FF0000'],
+            "suvSedan": ['#BA00F2','#A711F3','#9522F5','#8233F6','#7044F7','#5D55F9','#4A66FA','#3877FB','#2588FC','#1399FE','#00AAFF','#C2F200','#CAE400','#D1D600','#D9C700','#E1B900','#E8AB00','#F09D00','#F78E00','#FF8000'],
+            "gasElectric": ['#F20099','#F3128B','#F4237D','#F6356F','#F74761','#F85953','#F96A46','#FA7C38','#0091F2','#00A1E0','#00B0CF','#00C0BD','#00D0AC','#00E09A','#00EF89','#00FF77','#FB8E2A','#FDA01C','#FEB10E','#FFC300']
+        };
+
+        // Add X axis
+        var x = d3.scaleLinear()
+            .domain(d3.extent(data, function(d) { return d.year; }))
+            .range([ 0, width ]);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x).ticks(5));
+
+        // Add Y axis
+        var y = d3.scaleLinear()
+            .domain([0, 240000])
+            .range([ height, 0 ]);
+        svg.append("g")
+            .call(d3.axisLeft(y));
+
+        // Color palette
+        var color = d3.scaleOrdinal()
+            .domain(keys)
+            .range(colorSchemes["original"]);
+
+        var stackedData = d3.stack().keys(keys)(data);
+
+        var areas = svg.selectAll("mylayers")
+            .data(stackedData)
+            .enter()
+            .append("path")
+                .attr("class", "area")
+                .style("fill", function(d) { return color(d.key); })
+                .attr("d", d3.area()
+                    .x(function(d, i) { return x(d.data.year); })
+                    .y0(function(d) { return y(d[0]); })
+                    .y1(function(d) { return y(d[1]); })
+                )
+                .style("opacity", 0.8)
+                .on("mouseover", function(d) {
+                    d3.selectAll(".area").style("opacity", 0.3);
+                    d3.select(this).style("opacity", 1);
+                    tooltip.style("display", "block").text(d.key);
+                })
+                .on("mousemove", function() {
+                    tooltip.style("left", (d3.event.pageX + 10) + "px")
+                           .style("top", (d3.event.pageY - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.selectAll(".area").style("opacity", 0.8);
+                    tooltip.style("display", "none");
+                });
+
+        // Function to update colors
+        function updateColors(scheme) {
+            color.domain(keys).range(colorSchemes[scheme]);
+            svg.selectAll(".area")
+                .style("fill", function(d) { return color(d.key); });
+        }
+
+        // Event listener for radio buttons
+        d3.selectAll("input[name='colorScheme']").on("change", function() {
+            updateColors(this.value);
+        });
+    });
+</script>
